@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Search - yelp!help</title>
+<meta charset="utf-8" />
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>
+<script type="text/javascript" src="http://oauth.googlecode.com/svn/code/javascript/oauth.js"></script>
+<script type="text/javascript" src="http://oauth.googlecode.com/svn/code/javascript/sha1.js"></script>
+<script type="text/javascript" src="https://raw.github.com/padolsey/prettyPrint.js/master/prettyprint.js"></script>
+<link rel="stylesheet" href="css/bootstrap.css" type="text/css">
+<link rel="stylesheet" href="css/bootstrap-responsive.css" type="text/css">
+
+<script type="text/javascript">
+
+	var offset = 0;
+	var terms;
+	var near;
+	var bus_id;
+	var b_list = [];
+
+	var auth = {
+		consumerKey : "JQPaKmTJnVDirM5iHCWxPw",
+		consumerSecret : "G9daihroc2txyxZVrAqDmDvk21E",
+		accessToken : "nEAbPHArJxn2lp23zpxaPy1hypEAbJ5k",
+		accessTokenSecret : "s8O_jgZ5EP6ljhNN9xDLQetPE0Q",
+		serviceProvider : {
+			signatureMethod : "HMAC-SHA1"
+		}
+	};
+
+/*
+	var auth = {
+		consumerKey : "YOUR CONSUMER KEY",
+		consumerSecret : "YOUR CONSUMER SECRET",
+		accessToken : "YOUR ACCESS TOKEN",
+		accessTokenSecret : "YOUR TOKEN SECRET",
+		serviceProvider : {
+			signatureMethod : "HMAC-SHA1"
+		}
+	};
+*/
+
+	$(document).ready(function() {
+		$("#navbar").hide();
+		$("#mytable").hide();
+
+		if (location.search == "") {
+			console.log("NOGIVENQUERIES");
+			// CLEAR STORAGE EVERY TIME YOU RELOAD THIS PAGE
+			localStorage.clear();
+			//console.log("CLEARED STORAGE");
+		} else if (location.search == "?home") {
+			console.log("There are bookmarks but we are not searching.");
+		} else {
+			var getVar = location.search.replace('?', '').split('&');
+			var givenQuery = decodeURIComponent(getVar[0].split('=')[1]);
+			var givenLocation = decodeURIComponent(getVar[1].split('=')[1]);
+			console.log("GETVAR IS: " + givenQuery + " ::: " + givenLocation);
+			$("#query").val(givenQuery);
+			$("#location").val(givenLocation);
+			$("#homepageSearch").hide();
+			$("#navbar").show();
+			action();
+		}
+
+	});
+
+	function addBookmark(id) {
+
+		// check if id already exists
+		function checkIfExists(id, keyname) {
+			var add = false;
+			if(localStorage.getItem(keyname) != null)
+			{
+				var temp = localStorage.getItem(keyname).split(" ");
+				console.log("TEMP: " + temp);
+				for(x in temp) {
+					if(temp[x] == id) {
+						alert("The bookmark has already been added.");
+						return;
+					}
+					else
+						add = true;
+				}
+				if(add == true) {
+					addBusiness();
+				}
+			}
+			else
+				addBusiness();
+		}
+
+		//adds the business
+		function addBusiness() {
+			// assign objects to id keys in local storage
+			localStorage.setItem( b_object.id, JSON.stringify(b_object) );
+			// add ids to a list with key 'bid' in local storage
+			appendToBid('bid', b_object.id); //appending the bid to existing bid's
+			// print all business ojbects
+			printAllBid('bid');
+		}	
+		
+		// GET BUSINESS OBJECT
+		var business_obj;
+		for (var j = 0; j < b_list.length; j++) {
+			if (id == b_list[j][0]) business_obj = b_list[j][1];
+		}
+		
+		// WRITE TO FILE
+		var b_object = {};
+		var timestamp = new Date();
+		b_object.timestamp = timestamp;
+		b_object.data = business_obj;
+		b_object.id = business_obj.id;
+		checkIfExists(business_obj.id, 'bid');
+
+		console.log("DONE.");
+
+		//APPEND TO BID FILE
+		function appendToBid(keyname, newID) {
+			if (localStorage.getItem(keyname) == null) 
+				localStorage.setItem(keyname, newID);
+			else {
+				var combinedIDs = localStorage.getItem(keyname) + " " + newID;
+				console.log("combined: " + combinedIDs);
+				localStorage.setItem(keyname, combinedIDs);
+			}
+			console.log("after resetting: " + localStorage.getItem(keyname));
+		}
+
+		//PRINT EVERY BID FROM FILE
+		function printAllBid(keyname) {
+			var bidArray = localStorage.getItem(keyname).split(" ");
+			var allBkmks = new Array();
+			console.log("bidArray: " + bidArray);
+			for(i in bidArray) {
+				allBkmks.push(localStorage.getItem(bidArray[i]));
+			}
+			console.log(allBkmks);
+			localStorage.setItem("allBkmks", JSON.stringify(allBkmks));
+		}
+
+		// DISABLE BUTTON
+		$("#" + id).attr("class", "btn");
+		$("#" + id).attr("value", "Added to Bookmarks!");
+		$("#" + id).attr("disabled", "disabled");
+	}
+	
+	function homeSearch() {
+		$("#homepageSearch").hide();
+		$("#navbar").show();
+		$("#query").val($("#query-first").val());
+		$("#location").val($("#location-first").val());
+		offset = 0;
+		action();
+	}
+	
+	function firstSearch() {
+		offset = 0;
+		action();
+	}
+	
+	function nextPage() {
+		offset += 20;
+		action();
+	}
+	
+	function prevPage() {
+		offset -= 20;
+		action();
+	}
+
+	function action() {
+		$("#searchProgress").append("<div class='progress progress-striped active'><div class='bar' style='width: 100%;'>Searching...</div></div>");
+
+		terms = $("#query").val();
+		near = $("#location").val();
+
+		var accessor = {
+			consumerSecret : auth.consumerSecret,
+			tokenSecret : auth.accessTokenSecret
+		};
+
+		parameters = [];
+		parameters.push([ 'term', terms ]);
+		parameters.push([ 'location', near ]);
+		parameters.push([ 'offset', offset ]);
+		parameters.push([ 'callback', 'cb' ]);
+		parameters.push([ 'oauth_consumer_key', auth.consumerKey ]);
+		parameters.push([ 'oauth_consumer_secret', auth.consumerSecret ]);
+		parameters.push([ 'oauth_token', auth.accessToken ]);
+		parameters.push([ 'oauth_signature_method', 'HMAC-SHA1' ]);
+		
+		var message = {
+			'action' : 'http://api.yelp.com/v2/search',
+			'method' : 'GET',
+			'parameters' : parameters
+		};
+
+		OAuth.setTimestampAndNonce(message);
+		OAuth.SignatureMethod.sign(message, accessor);
+
+		var parameterMap = OAuth.getParameterMap(message.parameters);
+		parameterMap.oauth_signature = OAuth.percentEncode(parameterMap.oauth_signature)
+		console.log(parameterMap);
+
+		$.ajax({
+			'url' : message.action,
+			'data' : parameterMap,
+			'cache' : true,
+			'dataType' : 'jsonp',
+			'success' : function(data, textStats, XMLHttpRequest) {
+			console.log(data);
+			var output = prettyPrint(data);
+
+			$("#searchProgress").empty();
+			$("#mytable").hide();
+			$("#tablebody").empty();
+			$("#resultInfo").empty();
+			$("#resultInfo").append("<b>Showing " + (offset+1) + " to " + (offset+20) + " of "
+				+ data.total + " results for '" + $("#query").val() + "' near '" + $("#location").val() + "':</b>"
+				+ "<div class='pagination pagination-mini pagination-right'><ul><li><a href='#' onclick='prevPage()'>< Previous 20</a></li>"
+				+ "<li><a href='#' onclick='nextPage()'>Next 20 ></a></li></ul></div>");
+			$.each(data.businesses, function(i, record) {
+				b_list.push([ record.id, record ]);
+				var id = record.id + "-" + (offset+i);
+				var cat = "";
+				for ( var j = 0; j < record.categories.length; j++) {
+					if (j < record.categories.length - 1) cat += record.categories[j][0] + ", ";
+					else cat += record.categories[j][0];
+				}
+				$("#tablebody").append("<tr> <td width=80 style='vertical-align:middle;'> <img src=" + record.image_url + " class=img-polaroid width=70 height=70 /> </td> "
+					+ "<td> <a href=" + record.url + "> <b>" + (offset + i + 1) + ". " + record.name + "</b> </a> <br> "
+					+ record.location.address + "<br>" + record.location.city + ", " + record.location.state_code + " " + record.location.postal_code
+					+ "<br> <img src=" + record.rating_img_url_small + " /> (" + record.review_count + " reviews)<br>"
+					+ "<i>Categories:</i> " + cat + "</td>"
+					+ "<td width=170 style='vertical-align:middle;'> "
+					+ "<input type=button onclick=addBookmark(this.id) id=" + record.id + " value='+ Bookmark' class='btn btn-info' />"
+					+ "</tr> ");
+			});
+			$("#mytable").fadeIn();
+		}
+		});
+	}
+</script>
+</head>
+<body>
+	<div class="container" style="width:850px;padding-top:5px;">
+		<p align="right">Welcome, user | <a href="bookmarks.html">My Bookmarks</a></p>
+		
+		<div id="homepageSearch" class="form-inline">
+			<a href="index.html?home"><img src=img/logo.png /></a>
+			<br><br><br><br><br>
+			<h1>Welcome to <em>yelp!help!</em></h1>
+			<h4>Search for businesses below by specifying keywords and a location.</h4><br>
+			<input type="text" name="query-first" id="query-first" class="input-xlarge push-right" placeholder="Search for...">
+ 			<input type="text" name="location-first" id="location-first" class="input-xlarge push-right" placeholder="Near...">
+  			<input type="button" onclick="homeSearch()" name="button-first" value="Search!" class="btn btn-inverse" />
+		</div>
+		
+		<div id="navbar" class="nav navbar navbar-static-top navbar-inner">
+			<div class="nav" style="margin-top:10px;margin-bottom:10px;">
+				<div class="navbar-form form-inline">
+					<table width="810">
+						<tr>
+							<td><a href="index.html?home"><img src=img/logo.png /></a></td>
+							<td align="right">
+								<input type="text" name="query" id="query" class="input-large push-right" placeholder="Search for...">
+ 								<input type="text" name="location" id="location" class="input-large push-right" placeholder="Near...">
+  								<input type="button" onclick="firstSearch()" name="button" value="Search!" class="btn btn-inverse" />
+  							</td>
+  						</tr>
+  					</table>
+				</div>
+			</div>
+		</div>
+		<br>
+		<div id="searchProgress"></div>
+
+		<p id=resultInfo></p>
+		<table name="mytable" id="mytable" visibility="hidden" class="table table-striped table-hover" cellspacing=5 cellpadding=5>
+			<tbody id="tablebody"></tbody>
+		</table>
+	</div>
+</body>
+</html>
