@@ -22,7 +22,7 @@ AUDIO:
 - Headphones: AKG K240 MKII (mixing/mastering), Audio-Technica ATH-M40x (monitoring), Skullcandy Aviator
 
 VIDEO:
-- Cameras: Canon EOS Rebel T3i, Sony Handycam HDR-XR350
+- Cameras: Canon EOS Rebel T3i, Sony Handycam HDR-XR350, Panasonic Lumix DMC-ZS10
 - AmazonBasics 60-inch tripod
 
 SOFTWARE:
