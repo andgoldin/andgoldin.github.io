@@ -24,6 +24,7 @@ AUDIO:
 
 VIDEO:
 - Cameras: Canon EOS Rebel T3i, Sony Handycam HDR-XR350, Panasonic Lumix DMC-ZS10
+- Neewer CN-160 LED video light
 - AmazonBasics 60-inch tripod
 
 SOFTWARE:
